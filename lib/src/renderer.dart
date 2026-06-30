@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:characters/characters.dart';
 
+import 'bubbles/style.dart' show getWidth;
 import 'view.dart';
 
 abstract interface class TeaRenderer {
@@ -96,16 +97,18 @@ final class AnsiRenderer implements TeaRenderer {
       final next = row < nextLines.length ? nextLines[row] : '';
       final prev = row < _lastLines.length ? _lastLines[row] : '';
       if (next == prev) continue;
-      // Erase the row *before* writing it, not after: a line that exactly fills
-      // the terminal width leaves the cursor in the pending-wrap state on the
-      // last column, where a trailing `\x1b[K` erases that just-written cell back
-      // to the default background (the right edge of any full-width coloured bar
-      // would lose its paint, and flicker whenever the line is rewritten).
-      // Clearing first at column 1 erases the stale row, then the new line is the
-      // last thing written and nothing wipes its final column.
       _output.write('\x1b[${row + 1};1H');
-      _output.write('\x1b[K');
       _output.write(next);
+      // Only erase the tail when the new line is narrower than the old one —
+      // that is the only case where stale cells from the previous frame remain
+      // (the columns between the two widths). Erasing unconditionally after the
+      // write breaks a line that exactly fills the terminal: the cursor sits in
+      // pending-wrap on the last column, and `\x1b[K` there erases that just-
+      // written cell back to the default background, so a full-width coloured
+      // bar loses its right edge. Clearing *before* the write instead would
+      // blank the whole row first and flicker without synchronized output;
+      // writing in place and skipping the now-needless erase avoids both.
+      if (getWidth(next) < getWidth(prev)) _output.write('\x1b[K');
     }
     if (_syncUpdates) _output.write('\x1b[?2026l');
 
