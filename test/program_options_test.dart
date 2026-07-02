@@ -188,9 +188,81 @@ void main() {
       expect(receivedHeight, 40);
     });
   });
+
+  group('withRenderer()', () {
+    test('runs the program on the injected renderer', () async {
+      final chunks = <String>[];
+      final controller = StreamController<List<int>>();
+      controller.stream.listen((d) => chunks.add(utf8.decode(d)));
+      final sink = IOSink(controller.sink);
+      final recorder = _RecordingRenderer();
+
+      await Program(
+        programOptions: [
+          withInput(null),
+          withOutput(sink),
+          withAltScreen(),
+          withRenderer(recorder),
+        ],
+      ).run(_ImmediateQuit());
+
+      await sink.flush();
+      final out = chunks.join();
+      await sink.close();
+      await controller.close();
+
+      // The injected renderer received the frames and the shutdown close().
+      expect(recorder.rendered, isNotEmpty);
+      expect(recorder.closed, isTrue);
+      // The built-in renderer was not constructed: nothing entered the alt
+      // screen even though withAltScreen() was set.
+      expect(out, isNot(contains('\x1b[?1049h')));
+    });
+
+    test('withoutRenderer() still wins over an injected renderer', () async {
+      final recorder = _RecordingRenderer();
+
+      await Program(
+        programOptions: [
+          withInput(null),
+          withoutRenderer(),
+          withRenderer(recorder),
+        ],
+      ).run(_ImmediateQuit());
+
+      expect(recorder.rendered, isEmpty);
+    });
+  });
 }
 
 // ── Aux models ────────────────────────────────────────────────────────────────
+
+/// A [TeaRenderer] that records the frames it was asked to paint.
+final class _RecordingRenderer implements TeaRenderer {
+  final List<String> rendered = [];
+  bool closed = false;
+
+  @override
+  void render(View view) => rendered.add(view.content);
+  @override
+  void clearScreen() {}
+  @override
+  void insertAbove(String line) {}
+  @override
+  void setSyncUpdates(bool enabled) {}
+  @override
+  void release({bool reset = false}) {}
+  @override
+  void restore(View view) => render(view);
+  @override
+  void close() => closed = true;
+  @override
+  void setAltScreen(bool enabled) {}
+  @override
+  void setCursorVisibility(bool visible) {}
+  @override
+  void scroll(int n, {bool up = true}) {}
+}
 
 final class _WindowSizeCapture extends TeaModel {
   _WindowSizeCapture({required this.onSize});

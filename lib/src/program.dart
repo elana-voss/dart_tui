@@ -66,6 +66,13 @@ ProgramOption withoutSignalHandler() => (p) => p._disableSignalHandler = true;
 ProgramOption withoutCatchPanics() => (p) => p._disableCatchPanics = true;
 ProgramOption withoutRenderer() => (p) => p._disableRenderer = true;
 ProgramOption withCellRenderer() => (p) => p._useCellRenderer = true;
+
+/// Run the program on a custom [TeaRenderer] instead of the built-in ones —
+/// e.g. a decorator around [AnsiRenderer] that emits terminal graphics after
+/// each frame. Takes precedence over [withCellRenderer]; [withoutRenderer]
+/// still wins.
+ProgramOption withRenderer(TeaRenderer renderer) =>
+    (p) => p._customRenderer = renderer;
 ProgramOption withFilter(Msg? Function(Model model, Msg msg) filter) =>
     (p) => p._filter = filter;
 ProgramOption withFps(int fps) => (p) => p._fps = fps.clamp(1, 120);
@@ -126,6 +133,7 @@ final class Program {
   bool _disableCatchPanics = false;
   bool _disableSignalHandler = false;
   bool _useCellRenderer = false;
+  TeaRenderer? _customRenderer;
 
   // New first-class ProgramOption fields (override compat ProgramOptions when set).
   bool? _altScreen;
@@ -464,23 +472,24 @@ final class Program {
       final effectiveHideCursor = _hideCursor ?? _compatOptions.hideCursor;
       _renderer = _disableRenderer
           ? NilRenderer()
-          : _useCellRenderer
-              ? CellRenderer(
-                  output: _output,
-                  logSink: _logSink,
-                  defaultAltScreen: effectiveAltScreen,
-                  defaultHideCursor: effectiveHideCursor,
-                  defaultMouseMode: _defaultMouseMode,
-                  defaultReportFocus: _defaultReportFocus,
-                )
-              : AnsiRenderer(
-                  output: _output,
-                  logSink: _logSink,
-                  defaultAltScreen: effectiveAltScreen,
-                  defaultHideCursor: effectiveHideCursor,
-                  defaultMouseMode: _defaultMouseMode,
-                  defaultReportFocus: _defaultReportFocus,
-                );
+          : _customRenderer ??
+              (_useCellRenderer
+                  ? CellRenderer(
+                      output: _output,
+                      logSink: _logSink,
+                      defaultAltScreen: effectiveAltScreen,
+                      defaultHideCursor: effectiveHideCursor,
+                      defaultMouseMode: _defaultMouseMode,
+                      defaultReportFocus: _defaultReportFocus,
+                    )
+                  : AnsiRenderer(
+                      output: _output,
+                      logSink: _logSink,
+                      defaultAltScreen: effectiveAltScreen,
+                      defaultHideCursor: effectiveHideCursor,
+                      defaultMouseMode: _defaultMouseMode,
+                      defaultReportFocus: _defaultReportFocus,
+                    ));
       if (!_disableRenderer) {
         _setRawMode(true);
       }

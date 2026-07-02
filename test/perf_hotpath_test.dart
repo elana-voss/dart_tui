@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_tui/dart_tui.dart';
-import 'package:dart_tui/src/renderer.dart';
 import 'package:test/test.dart';
 
 /// Buffer-backed IOSink mirroring test/renderer_test.dart: the renderers emit

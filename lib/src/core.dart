@@ -7,4 +7,5 @@ export 'model.dart';
 export 'msg.dart';
 export 'program.dart';
 export 'prompts.dart';
+export 'renderer.dart';
 export 'view.dart';
